@@ -1,0 +1,86 @@
+worker_processes 1;
+error_log /var/log/nginx/error.log warn;
+pid /run/nginx/nginx.pid;
+
+events { worker_connections 1024; }
+
+http {
+    access_log /var/log/nginx/access.log;
+    sendfile on;
+    keepalive_timeout 65;
+    proxy_read_timeout 86400;
+    proxy_send_timeout 86400;
+
+    server {
+        listen ${NGINX_PORT};
+
+        # ── پنل مدیریت ─────────────────────────────────────────────────────
+        # آدرس: https://your-app.up.railway.app/${WEB_BASE_PATH}/
+        location /${WEB_BASE_PATH} {
+            proxy_pass http://127.0.0.1:${XNET_PANEL_PORT}/${WEB_BASE_PATH};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /${WEB_BASE_PATH}/ {
+            proxy_pass http://127.0.0.1:${XNET_PANEL_PORT}/${WEB_BASE_PATH}/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # ── API ────────────────────────────────────────────────────────────
+        location /api/ {
+            proxy_pass http://127.0.0.1:${XNET_PANEL_PORT}/api/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # ── Subscription لینک ─────────────────────────────────────────────
+        # xnet-server اینا رو روی پورت 2096 جدا serve میکنه
+        location /sub/ {
+            proxy_pass http://127.0.0.1:${XNET_SUB_PORT}/sub/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /ssh-sub/ {
+            proxy_pass http://127.0.0.1:${XNET_SUB_PORT}/ssh-sub/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # ── VLESS / VMess / Trojan WebSocket Inbound ───────────────────────
+        # در پنل: Protocol=VLESS, Port=8080, Network=ws
+        location / {
+            proxy_pass http://127.0.0.1:${XNET_INBOUND_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
