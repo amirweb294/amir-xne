@@ -10,8 +10,8 @@ RUN apk add --no-cache \
     sqlite \
     && ln -sf /usr/share/zoneinfo/Asia/Tehran /etc/localtime
 
+# ── X-Net panel ───────────────────────────────────────────────────────────
 ARG XNET_VERSION=v1.3.0
-# binary و dist رو در /app میذاریم — Volume روی /opt/xnet/data هست، نه اینجا
 RUN mkdir -p /app \
     && curl -fsSL \
        "https://github.com/xpanel-cp/x-net/releases/download/${XNET_VERSION}/xnet-panel-${XNET_VERSION}-linux-amd64.tar.gz" \
@@ -20,7 +20,17 @@ RUN mkdir -p /app \
     && chmod +x /app/xnet-server \
     && rm /tmp/xnet.tar.gz
 
-RUN mkdir -p /opt/xnet/data /var/log/nginx /run/nginx /etc/sing-box
+# ── sing-box core ─────────────────────────────────────────────────────────
+ARG SINGBOX_VERSION=v1.14.0
+RUN curl -fsSL \
+    "https://github.com/SagerNet/sing-box/releases/download/${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION#v}-linux-amd64.tar.gz" \
+    -o /tmp/singbox.tar.gz \
+    && tar -xzf /tmp/singbox.tar.gz -C /tmp \
+    && mv /tmp/sing-box-${SINGBOX_VERSION#v}-linux-amd64/sing-box /usr/local/bin/sing-box \
+    && chmod +x /usr/local/bin/sing-box \
+    && rm -rf /tmp/singbox.tar.gz /tmp/sing-box-*
+
+RUN mkdir -p /opt/xnet/data /etc/sing-box /var/log/nginx /run/nginx
 
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /start.sh
