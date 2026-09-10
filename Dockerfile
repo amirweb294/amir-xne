@@ -1,4 +1,4 @@
-# build v3 — force fresh cache
+# build v4
 FROM alpine:3.19
 
 RUN apk add --no-cache \
@@ -23,15 +23,17 @@ RUN mkdir -p /app \
     && chmod +x /app/xnet-server \
     && rm /tmp/xnet.tar.gz
 
-# ── sing-box core ─────────────────────────────────────────────────────────
+# ── sing-box core + libcronet.so ──────────────────────────────────────────
 ARG SINGBOX_VERSION=1.14.0
 RUN curl -fsSL \
     "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz" \
     -o /tmp/singbox.tar.gz \
     && tar -xzf /tmp/singbox.tar.gz -C /tmp \
     && mv /tmp/sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box /usr/local/bin/sing-box \
+    && mv /tmp/sing-box-${SINGBOX_VERSION}-linux-amd64/libcronet.so /usr/local/lib/libcronet.so \
     && chmod +x /usr/local/bin/sing-box \
-    && rm -rf /tmp/singbox.tar.gz /tmp/sing-box-*
+    && rm -rf /tmp/singbox.tar.gz /tmp/sing-box-* \
+    && /usr/local/bin/sing-box version
 
 RUN mkdir -p /opt/xnet/data /etc/sing-box /var/log/nginx /run/nginx
 
