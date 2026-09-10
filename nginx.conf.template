@@ -15,7 +15,6 @@ http {
         listen ${NGINX_PORT};
 
         # ── پنل مدیریت ─────────────────────────────────────────────────────
-        # آدرس: https://your-app.up.railway.app/${WEB_BASE_PATH}/
         location /${WEB_BASE_PATH} {
             proxy_pass http://127.0.0.1:${XNET_PANEL_PORT}/${WEB_BASE_PATH};
             proxy_http_version 1.1;
@@ -38,6 +37,16 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
+        # ── Static assets — JS/CSS/fonts که پنل نیاز داره ─────────────────
+        location /assets/ {
+            proxy_pass http://127.0.0.1:${XNET_PANEL_PORT}/assets/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            expires 7d;
+            add_header Cache-Control "public";
+        }
+
         # ── API ────────────────────────────────────────────────────────────
         location /api/ {
             proxy_pass http://127.0.0.1:${XNET_PANEL_PORT}/api/;
@@ -50,8 +59,7 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # ── Subscription لینک ─────────────────────────────────────────────
-        # xnet-server اینا رو روی پورت 2096 جدا serve میکنه
+        # ── Subscription ───────────────────────────────────────────────────
         location /sub/ {
             proxy_pass http://127.0.0.1:${XNET_SUB_PORT}/sub/;
             proxy_http_version 1.1;
@@ -71,7 +79,6 @@ http {
         }
 
         # ── VLESS / VMess / Trojan WebSocket Inbound ───────────────────────
-        # در پنل: Protocol=VLESS, Port=8080, Network=ws
         location / {
             proxy_pass http://127.0.0.1:${XNET_INBOUND_PORT};
             proxy_http_version 1.1;
