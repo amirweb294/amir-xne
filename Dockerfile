@@ -8,7 +8,9 @@ RUN apk add --no-cache \
     nginx \
     gettext \
     sqlite \
-    && ln -sf /usr/share/zoneinfo/Asia/Tehran /etc/localtime
+    libcap \
+    && ln -sf /usr/share/zoneinfo/Asia/Tehran /etc/localtime \
+    && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx
 
 # ── X-Net panel ───────────────────────────────────────────────────────────
 ARG XNET_VERSION=v1.3.0
@@ -21,12 +23,12 @@ RUN mkdir -p /app \
     && rm /tmp/xnet.tar.gz
 
 # ── sing-box core ─────────────────────────────────────────────────────────
-ARG SINGBOX_VERSION=v1.14.0
+ARG SINGBOX_VERSION=1.14.0
 RUN curl -fsSL \
-    "https://github.com/SagerNet/sing-box/releases/download/${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION#v}-linux-amd64.tar.gz" \
+    "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz" \
     -o /tmp/singbox.tar.gz \
     && tar -xzf /tmp/singbox.tar.gz -C /tmp \
-    && mv /tmp/sing-box-${SINGBOX_VERSION#v}-linux-amd64/sing-box /usr/local/bin/sing-box \
+    && mv /tmp/sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box /usr/local/bin/sing-box \
     && chmod +x /usr/local/bin/sing-box \
     && rm -rf /tmp/singbox.tar.gz /tmp/sing-box-*
 
