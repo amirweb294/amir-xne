@@ -1,18 +1,17 @@
 #!/bin/bash
 set -e
 
-echo "🚀 X-Net + nginx on Railway..."
+echo "🚀 X-Net + sing-box + nginx on Railway..."
 
 XNET_PANEL_PORT=2053
 XNET_SUB_PORT=2096
 XNET_INBOUND_PORT=8080
-# Railway این رو inject میکنه — قبل از هر چیز ذخیره کن
 NGINX_PORT="${PORT:-3000}"
 export NGINX_PORT XNET_PANEL_PORT XNET_SUB_PORT XNET_INBOUND_PORT
 
-ENV_FILE="/opt/xnet/data/.env"
+# ── .env ─────────────────────────────────────────────────────────────────
 mkdir -p /opt/xnet/data
-
+ENV_FILE="/opt/xnet/data/.env"
 if [ ! -f "$ENV_FILE" ]; then
     echo "📝 First run — generating .env..."
     JWT="$(cat /proc/sys/kernel/random/uuid | tr -d '-')$(cat /proc/sys/kernel/random/uuid | tr -d '-')"
@@ -50,16 +49,57 @@ fi
 
 export WEB_BASE_PATH="$BASE"
 
-# nginx config — از NGINX_PORT که قبلاً ذخیره شد استفاده میکنه
+# ── sing-box config ────────────────────────────────────────────────────────
+# اگه X-Net هنوز config نساخته یه VLESS+WS inbound روی 8080 میذاریم
+# X-Net بعداً این رو override میکنه وقتی inbound میسازی
+if [ ! -f "/etc/sing-box/config.json" ]; then
+    cat > /etc/sing-box/config.json << 'SBEOF'
+{
+  "log": { "level": "info", "timestamp": true },
+  "inbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8080,
+      "users": [],
+      "transport": {
+        "type": "ws",
+        "path": "/vl"
+      }
+    }
+  ],
+  "outbounds": [
+    { "type": "direct", "tag": "direct" },
+    { "type": "block", "tag": "block" }
+  ]
+}
+SBEOF
+fi
+
+# ── sing-box start ─────────────────────────────────────────────────────────
+echo "▶️  Starting sing-box on port $XNET_INBOUND_PORT..."
+/usr/local/bin/sing-box run -c /etc/sing-box/config.json &
+SINGBOX_PID=$!
+sleep 2
+
+if kill -0 $SINGBOX_PID 2>/dev/null; then
+    echo "✅ sing-box running (pid $SINGBOX_PID)"
+else
+    echo "⚠️  sing-box failed to start — check config"
+fi
+
+# ── nginx config ──────────────────────────────────────────────────────────
 envsubst '${NGINX_PORT} ${XNET_PANEL_PORT} ${XNET_SUB_PORT} ${XNET_INBOUND_PORT} ${WEB_BASE_PATH}' \
     < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 nginx -t
 
+# ── xnet-server ───────────────────────────────────────────────────────────
 echo "▶️  Starting xnet-server on port $XNET_PANEL_PORT..."
-# فقط env var های .env رو به xnet-server پاس بده — PORT محیطی Railway دست نخوره
+cd /opt/xnet
 env \
     PORT="${XNET_PANEL_PORT}" \
-    DATABASE_PATH="$(grep '^DATABASE_PATH=' $ENV_FILE | cut -d= -f2-)" \
+    DATABASE_PATH="/opt/xnet/data/xnet.db" \
     STATIC_DIR="/app/dist" \
     JWT_SECRET="$(grep '^JWT_SECRET=' $ENV_FILE | cut -d= -f2-)" \
     WEB_BASE_PATH="${BASE}" \
